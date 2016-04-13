@@ -1,0 +1,10 @@
+{
+        "Testing": {
+                "slacktoken": "XXXXXXXXXXXXXXXXXX",
+                "fbtoken": "SomethingBigFromTheFBGraphExplorerUI",
+                "pages": {
+                        "NYTimes": "nytimes",
+                        "Vox": "vox"
+                }
+        }
+}

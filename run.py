@@ -4,7 +4,13 @@
 import facebook
 from string import lower
 from datetime import datetime
-import requests
+import urllib2
+
+class NoPostsError(Exception):
+	def __init__(self, value=""):
+		self.value = value
+	def __str__(self):
+		return repr(self.value)
 
 class TopBook(object):
 	def __init__(self, cfg):
@@ -16,39 +22,48 @@ class TopBook(object):
 		return "Configured pages are: " + ", ".join(self.pages.keys())
 
 	def lookup(self, metric, query):
-		for page in self.pages:
-			if lower(query) == lower(page):
-				print 'Looking up `%s`.' % query
-				top = {}
-				if isinstance(self.pages[page], basestring):
-					# try:
-					top['id'], top['message'], top['likes'], top['comments'] = self.top_for_page(metric, self.pages[page])
-					# except:
-					# 	return "Error requesting post list for %s." % self.pages[page]
-					top['page'] = ''
-				elif isinstance(self.pages[page], (list, tuple)):
-					for subpage in self.pages[page]:
-						print "Reqesting %s" % subpage
-						try:
-							post = {}
-							post['id'], post['message'], post['likes'], post['comments'] = self.top_for_page(metric, subpage)
-						except:
-							return "Error requesting post list for %s." % subpage
-						if metric not in top or top[metric] < post[metric]:
-							top['page'] = "[%s] " % subpage
-							top['id'] = post['id']
-							top['comments'] = post['comments']
-							top['likes'] = post['likes']
-							top['message'] = post['message']
-				else:
-					return "Page not found. Try the pages command for a list."
+		page = query
+		if self.pages.get(query):
+			for config_page in self.pages:
+				if lower(query) == lower(config_page):
+					page = self.pages[config_page]
 
-				return "%s%s with %s likes and %s comments (http://www.facebook.com/%s)" % (top['page'], top['message'], top['likes'], top['comments'], top['id'])
-		return "Page not found. Try the pages command for a list."
+		# print 'Looking up `%s`.' % query
+		top = {}
+		if isinstance(page, basestring):
+			try:
+				top['id'], top['message'], top['likes'], top['comments'], top['picture'] = self.top_for_page(metric, page)
+			except facebook.GraphAPIError:
+				return "Error requesting post list for %s, page may not exist." % page
+			except NoPostsError:
+				return "No posts on %s in last day." % page
+			top['page'] = ''
+		elif isinstance(page, (list, tuple)):
+			for subpage in page:
+				print "Reqesting %s" % subpage
+				try:
+					post = {}
+					post['id'], post['message'], post['likes'], post['comments'], post['picture'] = self.top_for_page(metric, subpage)
+				except NoPostsError:
+					# No posts in last 24 hours.
+					pass
+				except:
+					return "Error requesting post list for %s." % subpage
+				if metric not in top or top[metric] < post[metric]:
+					top['page'] = "[%s] " % subpage
+					top['id'] = post['id']
+					top['comments'] = post['comments']
+					top['likes'] = post['likes']
+					top['message'] = post['message']
+					top['picture'] = post['picture']
+		else:
+			return "Page not found. Try the pages command for a list."
+
+		return "%s%s with %s likes and %s comments (http://www.facebook.com/%s) (%s)" % (top['page'], top['message'], top['likes'], top['comments'], top['id'], top['picture'])
 
 	def top_for_page(self, metric, page):
 		profile = self.graph.get_object(page)
-		posts = self.graph.get_connections(profile['id'], 'posts?fields=id,message,created_time,comments.limit(1).summary(true),likes.limit(1).summary(true)')
+		posts = self.graph.get_connections(profile['id'], 'posts?fields=id,message,created_time,picture,comments.limit(1).summary(true),likes.limit(1).summary(true)')
 		top = {}
 		data = []
 		completed = False
@@ -63,7 +78,10 @@ class TopBook(object):
 				data.append(post)
 			if completed:
 				break
-			posts = requests.get(posts['paging']['next']).json()
+			req = urllib2.Request(posts['paging']['next'])
+			response = urllib2.urlopen(req)
+			posts = json.loads(response.read())
+			# posts = requests.get(posts['paging']['next']).json()
 
 		for post in data:
 			if metric not in top or top[metric] < post[metric]['summary']['total_count']:
@@ -71,8 +89,11 @@ class TopBook(object):
 				top['comments'] = post['comments']['summary']['total_count']
 				top['likes'] = post['likes']['summary']['total_count']
 				top['message'] = post['message']
+				top['picture'] = post['picture']
 			# print "%s: %s %s %s" % (page, post['comments']['summary']['total_count'], post['likes']['summary']['total_count'], post['message'])
-		return (top['id'], top['message'], top['likes'], top['comments'])
+		if not top:
+			raise NoPostsError()
+		return (top['id'], top['message'], top['likes'], top['comments'], top['picture'])
 
 # --- Move all this junk to topbook.py when done ---
 

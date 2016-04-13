@@ -46,5 +46,9 @@ conn.request("POST", url[2], params, headers)
 response = conn.getresponse()
 data = response.read()
 conn.close()
-text = json.loads(data).get('text').replace("\\n","\n")
-print(text)
+try:
+	text = json.loads(data).get('text').replace("\\n","\n")
+	print(text)
+except:
+	print "Error from server."
+

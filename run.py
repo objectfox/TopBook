@@ -55,7 +55,6 @@ class TopBook(object):
 		while True:
 			for post in posts['data']:
 				# "2016-04-13T18:04:04+0000"
-				print post['created_time']
 				created_time = datetime.strptime(post['created_time'],"%Y-%m-%dT%H:%M:%S+0000")
 				age = datetime.utcnow() - created_time
 				if age.days >= 1:

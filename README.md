@@ -5,13 +5,25 @@ TopBook is a simple Python Bottle application which can be called from an [Outgo
 
 # Features
 
-TopBook lets you quickly determine what the most popular content is on a Facebook page or group of Facebook pages. You can ask it things like:
+TopBook lets you quickly determine what the most popular content is on a Facebook page or group of Facebook pages. You can get a list of things it knows how to do with:
+
+```
+topbook help
+```
+
+You can get a list of pages it knows about with:
+
+```
+topbook list
+```
+
+You can for page metrics with like, which returns the most liked article on the Vox Facebook page in the last 24 hours.
 
 ```
 topbook likes vox
 ```
 
-Which returns the most liked article on the Vox Facebook page in the last 24 hours. You can also create collections, say for all the local news sites in your area, or the sites that follow a specific niche, and ask all of them in one go.
+You can also create collections, say for all the local news sites in your area, or the sites that follow a specific niche, and ask all of them in one go.
 
 ```
 topbook comments austinnews

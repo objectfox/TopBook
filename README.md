@@ -14,7 +14,7 @@ topbook help
 You can get a list of pages it knows about with:
 
 ```
-topbook list
+topbook pages
 ```
 
 You can for page metrics with like, which returns the most liked article on the Vox Facebook page in the last 24 hours.
@@ -28,6 +28,18 @@ You can also create collections, say for all the local news sites in your area, 
 ```
 topbook comments austinnews
 ```
+
+```
+top X likes/comments/shares page/page1, page2, .../page_group in last X days
+  (top) X - return the top X results (default: 1)
+  relative - rank results as percentage compared to page average (optional)
+  likes/comments/shares - how the results are sorted
+  (for) page/pages1, page2, .../page_group 
+    - specific FB page, manual list of FB pages, or a page group from the config
+  (in the last) X days - return results from the last X days (default: 1)
+```
+
+Example complex query: _top 3 relative likes for vox, sbnation, eater in the last 2 days_
 
 # Configuration & Installation
 

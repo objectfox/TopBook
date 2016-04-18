@@ -77,7 +77,7 @@ class TopBook(object):
 					pass
 				except Exception, e:
 					return {"text": "Error requesting post list for %s: %s" % (subpage, e)}
-			all_posts.sort(key=lambda x: x.get(metric), reverse=True)
+			all_posts.sort(key=lambda x: x.get(sortmetric), reverse=True)
 		else:
 			return {"text": "Page not found. Try the pages command for a list."}
 

@@ -16,14 +16,16 @@ class TopBook(object):
 	def __init__(self, cfg):
 		self.token = cfg['fbtoken']
 		self.pages = cfg['pages']
+		self.lower_pages = map(lambda w: w.lower(), self.pages)
 		self.graph = facebook.GraphAPI(self.token)
 
 	def page_list(self):
 		return "Configured pages are: " + ", ".join(self.pages.keys())
 
-	def lookup(self, metric, query):
+	def lookup(self, metric, query, days):
+		attachments = []
 		page = query
-		if self.pages.get(query):
+		if lower(query) in self.lower_pages:
 			for config_page in self.pages:
 				if lower(query) == lower(config_page):
 					page = self.pages[config_page]
@@ -32,7 +34,7 @@ class TopBook(object):
 		top = {}
 		if isinstance(page, basestring):
 			try:
-				top['id'], top['message'], top['likes'], top['comments'], top['picture'] = self.top_for_page(metric, page)
+				top['id'], top['message'], top['likes'], top['comments'], top['picture'] = self.top_for_page(metric, page, days)
 			except facebook.GraphAPIError:
 				return "Error requesting post list for %s, page may not exist." % page
 			except NoPostsError:
@@ -43,9 +45,9 @@ class TopBook(object):
 				print "Reqesting %s" % subpage
 				try:
 					post = {}
-					post['id'], post['message'], post['likes'], post['comments'], post['picture'] = self.top_for_page(metric, subpage)
+					post['id'], post['message'], post['likes'], post['comments'], post['picture'] = self.top_for_page(metric, subpage, days)
 				except NoPostsError:
-					# No posts in last 24 hours.
+					# No posts in time range.
 					pass
 				except:
 					return "Error requesting post list for %s." % subpage
@@ -59,9 +61,29 @@ class TopBook(object):
 		else:
 			return "Page not found. Try the pages command for a list."
 
-		return "%s%s with %s likes and %s comments (http://www.facebook.com/%s) (%s)" % (top['page'], top['message'], top['likes'], top['comments'], top['id'], top['picture'])
+		message = {
+			"fallback": "Fallback",
+			"text": "%s%s http://www.facebook.com/%s" % (top['page'], top['message'], top['id']),
+			"fields": [
+                {
+                    "title": "Likes",
+                    "value": "%s" % top['likes'],
+                    "short": True
+                },
+                {
+                    "title": "Comments",
+                    "value": "%s" % top['comments'],
+                    "short": True
+                }
 
-	def top_for_page(self, metric, page):
+            ],
+			"thumb_url": "%s" % top['picture']
+		}
+		attachments.append(message)
+		return {"attachments":attachments}
+		# return "%s%s with %s likes and %s comments (http://www.facebook.com/%s) (%s)" % (top['page'], top['message'], top['likes'], top['comments'], top['id'], top['picture'])
+
+	def top_for_page(self, metric, page, days):
 		profile = self.graph.get_object(page)
 		posts = self.graph.get_connections(profile['id'], 'posts?fields=id,message,created_time,picture,comments.limit(1).summary(true),likes.limit(1).summary(true)')
 		top = {}
@@ -72,7 +94,7 @@ class TopBook(object):
 				# "2016-04-13T18:04:04+0000"
 				created_time = datetime.strptime(post['created_time'],"%Y-%m-%dT%H:%M:%S+0000")
 				age = datetime.utcnow() - created_time
-				if age.days >= 1:
+				if age.days >= days:
 					completed = True
 					break
 				data.append(post)
@@ -100,6 +122,7 @@ class TopBook(object):
 from bottle import route, run, request
 import json
 from string import lower
+import re
 
 accounts = {}
 with open("config.json", 'r') as jsonfile:
@@ -127,28 +150,37 @@ comments <account> - Show the most commented article for an account
 	else:
 		return (json.dumps({"text":"Slack token not found in config."}))
 
+	days = 1
+
 	user_name = request.forms.get('user_name')
 	trigger_word = request.forms.get('trigger_word')
 	text = request.forms.get('text')
 	if text.startswith(trigger_word):
 		text = text[len(trigger_word):].lstrip()
 
-	# print(text)
+	m = re.search('^(.*) in last (\d+) days?', text)
+	m2 = re.search('^(.*) last (\d+) days?', text)
+	if m and m.group(2):
+		text = m.group(1)
+		days = int(m.group(2))
+	elif m2 and m2.group(2):
+		text = m2.group(1)
+		days = int(m2.group(2))
 
 	if lower(text).startswith('help'):
 		response['text'] = help
 	elif lower(text).startswith('pages'):
 		response['text'] = topbook.page_list()
 	elif lower(text).startswith('likes'):
-		response['text'] = topbook.lookup('likes', text[5:].lstrip())
+		response = topbook.lookup('likes', text[5:].lstrip(), days)
 	elif lower(text).startswith('comments'):
-		response['text'] = topbook.lookup('comments', text[8:].lstrip())
+		response = topbook.lookup('comments', text[8:].lstrip(), days)
 	else:
 		response['text'] = "Ack! I don't know how to answer that. Try `%s help`?" % trigger_word
 
 
-	return json.dumps(response)
+	return response
 
 
-run(host='0.0.0.0', port=8000, debug=True, reloader=True)
+run(host='127.0.0.1', port=8000, debug=True, reloader=True)
 

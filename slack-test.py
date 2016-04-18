@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import httplib, urllib, sys, os, json
+import httplib, urllib, sys, os, json, pprint
 from urlparse import urlparse
 
 # Set SLACK_TOKEN if you need a custom token for your config.
@@ -12,7 +12,7 @@ env_host = os.environ.get('BOT_HOST')
 # Set BOT_HOST if the webapp responds on a different port or hostname.
 env_trigger = os.environ.get('TRIGGER_WORD')
 
-if len(sys.argv) == 1:
+if len(sys.argv) > 2 or len(sys.argv) == 1:
 	exit("Usage: slack-test.py \"Message to send to bot\"")
 
 # Here are slack's example outbound webhook post values.
@@ -47,8 +47,14 @@ response = conn.getresponse()
 data = response.read()
 conn.close()
 try:
-	text = json.loads(data).get('text').replace("\\n","\n")
-	print(text)
+	data = json.loads(data)
+	if data.get('text'):
+		text = data.get('text').replace("\\n","\n")
+		print(text)
+	if data.get('attachments'):
+		pp = pprint.PrettyPrinter(indent=2)
+		pp.pprint(data.get('attachments'))
 except:
+	print data
 	print "Error from server."
 

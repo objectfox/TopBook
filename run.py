@@ -55,9 +55,9 @@ class TopBook(object):
 			try:
 				all_posts = self.top_for_page(metric, page, days)
 			except facebook.GraphAPIError:
-				return "Error requesting post list for %s, page may not exist." % page
+				return {"text": "Error requesting post list for %s, page may not exist." % page}
 			except NoPostsError:
-				return "No posts on %s in last day." % page
+				return {"text": "No posts on %s in last day." % page}
 			top['page'] = ''
 		elif isinstance(page, (list, tuple)):
 			for subpage in page:
@@ -225,12 +225,16 @@ pages - Get a list of pages
 	days = 1
 	m = re.search('^(.*) in last (\d+) days?', text)
 	m2 = re.search('^(.*) last (\d+) days?', text)
+	m3 = re.search('^(.*) (\d+) days?', text)
 	if m and m.group(2):
 		text = m.group(1)
 		days = int(m.group(2))
 	elif m2 and m2.group(2):
 		text = m2.group(1)
 		days = int(m2.group(2))
+	elif m3 and m3.group(2):
+		text = m3.group(1)
+		days = int(m3.group(2))
 
 	relative = False
 	if lower(text).startswith('relative'):

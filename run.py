@@ -203,7 +203,7 @@ pages - list of configured page options
 *top X likes/comments/shares page/page1,page2,.../page_group in last X days*
  *(top) X* - return the top X results (default: 1)
  *relative* - rank results as percentage compared to page average (optional)
- *likes/comments/shares* - how the results are sorted
+ *likes/comments/shares* - what metric the results are sorted on
  *(for) page/pages1,page2,.../page_group* - specific FB page, manual list of FB pages, or a page group from the config
  *(in the last) X days* - return results from the last X days (default: 1)
 Example: _top 3 relative likes for vox in the last 2 days_

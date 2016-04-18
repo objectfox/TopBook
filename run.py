@@ -97,8 +97,8 @@ class TopBook(object):
 	                    "short": True
 	                },
 	                {
-	                    "title": "Perf",
-	                    "value": "%%%s of avg (%s)" % (
+	                    "title": "Performance",
+	                    "value": "%%%s of page average (%s)" % (
 	                    		locale.format("%d", top['perfper'], grouping=True),
 	                    		locale.format("%d", top['average'], grouping=True)),
 	                    "short": True

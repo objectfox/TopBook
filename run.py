@@ -5,6 +5,7 @@ import facebook
 from string import lower
 from datetime import datetime
 import urllib2
+import locale
 
 class NoPostsError(Exception):
 	def __init__(self, value=""):
@@ -22,9 +23,12 @@ class TopBook(object):
 	def page_list(self):
 		return "Configured pages are: " + ", ".join(self.pages.keys())
 
-	def lookup(self, metric, query, days):
+	def lookup(self, metric, query, days, relative):
 		attachments = []
 		page = query
+		sortmetric = metric
+		if relative:
+			sortmetric = "perfper"
 		if lower(query) in self.lower_pages:
 			for config_page in self.pages:
 				if lower(query) == lower(config_page):
@@ -34,7 +38,7 @@ class TopBook(object):
 		top = {}
 		if isinstance(page, basestring):
 			try:
-				top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'] = self.top_for_page(metric, page, days)
+				top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'], top['average'], top['perfper'] = self.top_for_page(metric, page, days)
 			except facebook.GraphAPIError:
 				return "Error requesting post list for %s, page may not exist." % page
 			except NoPostsError:
@@ -45,14 +49,14 @@ class TopBook(object):
 				print "Reqesting %s" % subpage
 				try:
 					post = {}
-					post['id'], post['message'], post['likes'], post['comments'], post['picture'], post['shares'] = self.top_for_page(metric, subpage, days)
+					post['id'], post['message'], post['likes'], post['comments'], post['picture'], post['shares'], post['average'], post['perfper'] = self.top_for_page(metric, subpage, days)
 				except NoPostsError:
 					# No posts in time range.
 					print "No posts in time range."
 					pass
 				except Exception, e:
 					return "Error requesting post list for %s: %s" % (subpage, e)
-				if metric not in top or top[metric] < post[metric]:
+				if metric not in top or top[sortmetric] < post[sortmetric]:
 					top['page'] = "%s" % subpage
 					top['id'] = post['id']
 					top['comments'] = post['comments']
@@ -60,23 +64,37 @@ class TopBook(object):
 					top['message'] = post['message']
 					top['picture'] = post['picture']
 					top['shares'] = post['shares']
+					top['average'] = post['average']
+					top['perfper'] = post['perfper']
 		else:
 			return "Page not found. Try the pages command for a list."
 
+                    # "value": "%s :thumbsup:, %s :speech_balloon:, %s :arrow_heading_up:" % (
 		message = {
 			"fallback": "Fallback",
 			"text": "%s http://www.facebook.com/%s" % (top['message'], top['id']),
 			"fields": [
                 {
                     "title": "Social",
-                    "value": "%s Likes, %s Comments, %s Shares" % (top['likes'], top['comments'], top['shares']),
+                    "value": "%s Likes, %s Comments, %s Shares" % (
+                    		locale.format("%d", top['likes'], grouping=True),
+                    		locale.format("%d", top['comments'], grouping=True),
+                    		locale.format("%d", top['shares'], grouping=True)),
+                    "short": True
+                },
+                {
+                    "title": "Performance",
+                    "value": "%%%s of average (%s)" % (
+                    		locale.format("%d", top['perfper'], grouping=True),
+                    		locale.format("%d", top['average'], grouping=True)),
                     "short": True
                 }
+
             ],
 			"thumb_url": "%s" % top['picture']
 		}
 		if top['page']:
-			message["fields"].append({"title":"Page","value":top['page'], "short": True})
+			message["fields"].append({"title":"Page","value":"<http://www.facebook.com/%s|%s>" % (top['page'], top['page']), "short": True})
 		attachments.append(message)
 		return {"attachments":attachments}
 		# return "%s%s with %s likes and %s comments (http://www.facebook.com/%s) (%s)" % (top['page'], top['message'], top['likes'], top['comments'], top['id'], top['picture'])
@@ -102,7 +120,7 @@ class TopBook(object):
 			response = urllib2.urlopen(req)
 			posts = json.loads(response.read())
 			# posts = requests.get(posts['paging']['next']).json()
-
+		totals = []
 		for post in data:
 			if metric == "shares":
 				if post.get(metric):
@@ -114,6 +132,7 @@ class TopBook(object):
 					total = post[metric]['summary']['total_count']
 				else:
 					total = 0
+			totals.append(total)
 			if metric not in top or top[metric] < total:
 				top['id'] = post['id']
 				top['comments'] = post['comments']['summary']['total_count']
@@ -124,7 +143,13 @@ class TopBook(object):
 			# print "%s: %s %s %s" % (page, post['comments']['summary']['total_count'], post['likes']['summary']['total_count'], post['message'])
 		if not top:
 			raise NoPostsError()
-		return (top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'])
+		average = 0
+		perfper = 100.0
+		if totals:
+			average = sum(totals)/len(totals)
+			if average > 0:
+				perfper = (float(top[metric])/float(average))*100.0
+		return (top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'], average, perfper)
 
 # --- Move all this junk to topbook.py when done ---
 
@@ -147,11 +172,12 @@ def hello():
 def slack_parse():
 	help = """
 pages - Get a list of pages
-likes <account> (last X days) - Show the most liked article for an account
-comments <account> (last X days) - Show the most commented article for an account
+likes/comments/shares <account> (last X days) - Find the highest performing post in a page or page group
+relative likes/comments/shares <account> (last X days) - Find the highest performing post in a page group, relative to the page's average
 	"""
 
 	response = {}
+	locale.setlocale(locale.LC_ALL, 'en_US')
 
 	token = request.forms.get('token')
 	if accounts[token]:
@@ -175,17 +201,21 @@ comments <account> (last X days) - Show the most commented article for an accoun
 	elif m2 and m2.group(2):
 		text = m2.group(1)
 		days = int(m2.group(2))
+	relative = False
+	if lower(text).startswith('relative'):
+		text = text[len("relative"):].lstrip()
+		relative = True
 
 	if lower(text).startswith('help'):
 		response['text'] = help
 	elif lower(text).startswith('pages'):
 		response['text'] = topbook.page_list()
 	elif lower(text).startswith('likes'):
-		response = topbook.lookup('likes', text[5:].lstrip(), days)
+		response = topbook.lookup('likes', text[5:].lstrip(), days, relative)
 	elif lower(text).startswith('comments'):
-		response = topbook.lookup('comments', text[8:].lstrip(), days)
+		response = topbook.lookup('comments', text[8:].lstrip(), days, relative)
 	elif lower(text).startswith('shares'):
-		response = topbook.lookup('shares', text[6:].lstrip(), days)
+		response = topbook.lookup('shares', text[6:].lstrip(), days, relative)
 	else:
 		response['text'] = "Ack! I don't know how to answer that. Try `%s help`?" % trigger_word
 

@@ -34,7 +34,7 @@ class TopBook(object):
 		top = {}
 		if isinstance(page, basestring):
 			try:
-				top['id'], top['message'], top['likes'], top['comments'], top['picture'] = self.top_for_page(metric, page, days)
+				top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'] = self.top_for_page(metric, page, days)
 			except facebook.GraphAPIError:
 				return "Error requesting post list for %s, page may not exist." % page
 			except NoPostsError:
@@ -45,12 +45,13 @@ class TopBook(object):
 				print "Reqesting %s" % subpage
 				try:
 					post = {}
-					post['id'], post['message'], post['likes'], post['comments'], post['picture'] = self.top_for_page(metric, subpage, days)
+					post['id'], post['message'], post['likes'], post['comments'], post['picture'], post['shares'] = self.top_for_page(metric, subpage, days)
 				except NoPostsError:
 					# No posts in time range.
+					print "No posts in time range."
 					pass
-				except:
-					return "Error requesting post list for %s." % subpage
+				except Exception, e:
+					return "Error requesting post list for %s: %s" % (subpage, e)
 				if metric not in top or top[metric] < post[metric]:
 					top['page'] = "%s" % subpage
 					top['id'] = post['id']
@@ -58,6 +59,7 @@ class TopBook(object):
 					top['likes'] = post['likes']
 					top['message'] = post['message']
 					top['picture'] = post['picture']
+					top['shares'] = post['shares']
 		else:
 			return "Page not found. Try the pages command for a list."
 
@@ -66,16 +68,10 @@ class TopBook(object):
 			"text": "%s http://www.facebook.com/%s" % (top['message'], top['id']),
 			"fields": [
                 {
-                    "title": "Likes",
-                    "value": "%s" % top['likes'],
-                    "short": True
-                },
-                {
-                    "title": "Comments",
-                    "value": "%s" % top['comments'],
+                    "title": "Social",
+                    "value": "%s Likes, %s Comments, %s Shares" % (top['likes'], top['comments'], top['shares']),
                     "short": True
                 }
-
             ],
 			"thumb_url": "%s" % top['picture']
 		}
@@ -87,7 +83,7 @@ class TopBook(object):
 
 	def top_for_page(self, metric, page, days):
 		profile = self.graph.get_object(page)
-		posts = self.graph.get_connections(profile['id'], 'posts?fields=id,message,created_time,picture,comments.limit(1).summary(true),likes.limit(1).summary(true)')
+		posts = self.graph.get_connections(profile['id'], 'posts?fields=id,message,created_time,picture,comments.limit(1).summary(true),likes.limit(1).summary(true),shares')
 		top = {}
 		data = []
 		completed = False
@@ -108,16 +104,27 @@ class TopBook(object):
 			# posts = requests.get(posts['paging']['next']).json()
 
 		for post in data:
-			if metric not in top or top[metric] < post[metric]['summary']['total_count']:
+			if metric == "shares":
+				if post.get(metric):
+					total = post[metric].get('count')
+				else:
+					total = 0
+			else:
+				if post.get(metric):
+					total = post[metric]['summary']['total_count']
+				else:
+					total = 0
+			if metric not in top or top[metric] < total:
 				top['id'] = post['id']
 				top['comments'] = post['comments']['summary']['total_count']
 				top['likes'] = post['likes']['summary']['total_count']
 				top['message'] = post['message']
 				top['picture'] = post['picture']
+				top['shares'] = post.get('shares',{}).get("count",0)
 			# print "%s: %s %s %s" % (page, post['comments']['summary']['total_count'], post['likes']['summary']['total_count'], post['message'])
 		if not top:
 			raise NoPostsError()
-		return (top['id'], top['message'], top['likes'], top['comments'], top['picture'])
+		return (top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'])
 
 # --- Move all this junk to topbook.py when done ---
 
@@ -177,6 +184,8 @@ comments <account> (last X days) - Show the most commented article for an accoun
 		response = topbook.lookup('likes', text[5:].lstrip(), days)
 	elif lower(text).startswith('comments'):
 		response = topbook.lookup('comments', text[8:].lstrip(), days)
+	elif lower(text).startswith('shares'):
+		response = topbook.lookup('shares', text[6:].lstrip(), days)
 	else:
 		response['text'] = "Ack! I don't know how to answer that. Try `%s help`?" % trigger_word
 

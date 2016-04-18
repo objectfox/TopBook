@@ -23,13 +23,16 @@ class TopBook(object):
 	def page_list(self):
 		return "Configured pages are: " + ", ".join(self.pages.keys())
 
-	def lookup(self, metric, query, days, relative):
+	def lookup(self, metric, query, days, relative, count):
 		attachments = []
 		page = query
 		sortmetric = metric
+		all_posts = []
 		if relative:
 			sortmetric = "perfper"
-		if lower(query) in self.lower_pages:
+		if "," in page:
+			page = page.split(",")
+		elif lower(query) in self.lower_pages:
 			for config_page in self.pages:
 				if lower(query) == lower(config_page):
 					page = self.pages[config_page]
@@ -38,7 +41,7 @@ class TopBook(object):
 		top = {}
 		if isinstance(page, basestring):
 			try:
-				top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'], top['average'], top['perfper'] = self.top_for_page(metric, page, days)
+				all_posts = self.top_for_page(metric, page, days)
 			except facebook.GraphAPIError:
 				return "Error requesting post list for %s, page may not exist." % page
 			except NoPostsError:
@@ -48,61 +51,52 @@ class TopBook(object):
 			for subpage in page:
 				print "Reqesting %s" % subpage
 				try:
-					post = {}
-					post['id'], post['message'], post['likes'], post['comments'], post['picture'], post['shares'], post['average'], post['perfper'] = self.top_for_page(metric, subpage, days)
+					all_posts.extend(self.top_for_page(metric, subpage, days))
 				except NoPostsError:
 					# No posts in time range.
 					print "No posts in time range."
 					pass
 				except Exception, e:
-					return "Error requesting post list for %s: %s" % (subpage, e)
-				if metric not in top or top[sortmetric] < post[sortmetric]:
-					top['page'] = "%s" % subpage
-					top['id'] = post['id']
-					top['comments'] = post['comments']
-					top['likes'] = post['likes']
-					top['message'] = post['message']
-					top['picture'] = post['picture']
-					top['shares'] = post['shares']
-					top['average'] = post['average']
-					top['perfper'] = post['perfper']
+					return {"text": "Error requesting post list for %s: %s" % (subpage, e)}
+			all_posts.sort(key=lambda x: x.get("perfper"), reverse=True)
 		else:
-			return "Page not found. Try the pages command for a list."
+			return {"text": "Page not found. Try the pages command for a list."}
 
                     # "value": "%s :thumbsup:, %s :speech_balloon:, %s :arrow_heading_up:" % (
-		message = {
-			"fallback": "Fallback",
-			"text": "%s http://www.facebook.com/%s" % (top['message'], top['id']),
-			"fields": [
-                {
-                    "title": "Social",
-                    "value": "%s Likes, %s Comments, %s Shares" % (
-                    		locale.format("%d", top['likes'], grouping=True),
-                    		locale.format("%d", top['comments'], grouping=True),
-                    		locale.format("%d", top['shares'], grouping=True)),
-                    "short": True
-                },
-                {
-                    "title": "Performance",
-                    "value": "%%%s of average (%s)" % (
-                    		locale.format("%d", top['perfper'], grouping=True),
-                    		locale.format("%d", top['average'], grouping=True)),
-                    "short": True
-                }
+		for x in range(count):
+			top = all_posts[x]
+			message = {
+				"fallback": "Fallback",
+				"text": "%s http://www.facebook.com/%s" % (top['message'], top['id']),
+				"fields": [
+	                {
+	                    "title": "Social",
+	                    "value": "%s Likes, %s Comments, %s Shares" % (
+	                    		locale.format("%d", top['likes'], grouping=True),
+	                    		locale.format("%d", top['comments'], grouping=True),
+	                    		locale.format("%d", top['shares'], grouping=True)),
+	                    "short": True
+	                },
+	                {
+	                    "title": "Performance",
+	                    "value": "%%%s of average (%s)" % (
+	                    		locale.format("%d", top['perfper'], grouping=True),
+	                    		locale.format("%d", top['average'], grouping=True)),
+	                    "short": True
+	                }
 
-            ],
-			"thumb_url": "%s" % top['picture']
-		}
-		if top['page']:
-			message["fields"].append({"title":"Page","value":"<http://www.facebook.com/%s|%s>" % (top['page'], top['page']), "short": True})
-		attachments.append(message)
+	            ],
+				"thumb_url": "%s" % top['picture']
+			}
+			if isinstance(page, (list, tuple)):
+				message["fields"].append({"title":"Page","value":"<http://www.facebook.com/%s|%s>" % (top['page'], top['page']), "short": True})
+			attachments.append(message)
 		return {"attachments":attachments}
 		# return "%s%s with %s likes and %s comments (http://www.facebook.com/%s) (%s)" % (top['page'], top['message'], top['likes'], top['comments'], top['id'], top['picture'])
 
 	def top_for_page(self, metric, page, days):
 		profile = self.graph.get_object(page)
 		posts = self.graph.get_connections(profile['id'], 'posts?fields=id,message,created_time,picture,comments.limit(1).summary(true),likes.limit(1).summary(true),shares')
-		top = {}
 		data = []
 		completed = False
 		while True:
@@ -121,6 +115,8 @@ class TopBook(object):
 			posts = json.loads(response.read())
 			# posts = requests.get(posts['paging']['next']).json()
 		totals = []
+		posts = []
+		top = {}
 		for post in data:
 			if metric == "shares":
 				if post.get(metric):
@@ -133,13 +129,17 @@ class TopBook(object):
 				else:
 					total = 0
 			totals.append(total)
-			if metric not in top or top[metric] < total:
-				top['id'] = post['id']
-				top['comments'] = post['comments']['summary']['total_count']
-				top['likes'] = post['likes']['summary']['total_count']
-				top['message'] = post['message']
-				top['picture'] = post['picture']
-				top['shares'] = post.get('shares',{}).get("count",0)
+			top = {}
+			top['id'] = post['id']
+			top['page'] = page
+			top['comments'] = post['comments']['summary']['total_count']
+			top['likes'] = post['likes']['summary']['total_count']
+			top['message'] = post.get('message',"")
+			top['picture'] = post.get('picture',"")
+			top['shares'] = post.get('shares',{}).get("count",0)
+			top['average'] = 0
+			top['perfper'] = 100.0
+			posts.append(top)
 			# print "%s: %s %s %s" % (page, post['comments']['summary']['total_count'], post['likes']['summary']['total_count'], post['message'])
 		if not top:
 			raise NoPostsError()
@@ -149,7 +149,16 @@ class TopBook(object):
 			average = sum(totals)/len(totals)
 			if average > 0:
 				perfper = (float(top[metric])/float(average))*100.0
-		return (top['id'], top['message'], top['likes'], top['comments'], top['picture'], top['shares'], average, perfper)
+		postlist = []
+		for post in posts:
+			post["average"] = average
+			if average > 0:
+				post["perfper"] = (float(post[metric])/float(average))*100.0
+			else:
+				post["perfper"] = 100.0
+			postlist.append(post)
+
+		return sorted(postlist, key=lambda x: x.get("perfper"), reverse=True)
 
 # --- Move all this junk to topbook.py when done ---
 
@@ -172,8 +181,8 @@ def hello():
 def slack_parse():
 	help = """
 pages - Get a list of pages
-likes/comments/shares <account> (last X days) - Find the highest performing post in a page or page group
-relative likes/comments/shares <account> (last X days) - Find the highest performing post in a page group, relative to the page's average
+(top X) likes/comments/shares <account> (last X days) - Find the highest performing post in a page or page group
+(top X) relative likes/comments/shares <account> (last X days) - Find the highest performing post in a page group, relative to the page's average
 	"""
 
 	response = {}
@@ -193,6 +202,16 @@ relative likes/comments/shares <account> (last X days) - Find the highest perfor
 	if text.startswith(trigger_word):
 		text = text[len(trigger_word):].lstrip()
 
+	count = 1
+	m = re.search('^(\d+)\s(.+)$', text)
+	m2 = re.search('^top\s+(\d+)\s+(.+)$', text)
+	if m and m.group(2):
+		count = int(m.group(1))
+		text = m.group(2)
+	elif m2 and m2.group(2):
+		count = int(m2.group(1))
+		text = m2.group(2)
+
 	m = re.search('^(.*) in last (\d+) days?', text)
 	m2 = re.search('^(.*) last (\d+) days?', text)
 	if m and m.group(2):
@@ -211,11 +230,11 @@ relative likes/comments/shares <account> (last X days) - Find the highest perfor
 	elif lower(text).startswith('pages'):
 		response['text'] = topbook.page_list()
 	elif lower(text).startswith('likes'):
-		response = topbook.lookup('likes', text[5:].lstrip(), days, relative)
+		response = topbook.lookup('likes', text[5:].lstrip(), days, relative, count)
 	elif lower(text).startswith('comments'):
-		response = topbook.lookup('comments', text[8:].lstrip(), days, relative)
+		response = topbook.lookup('comments', text[8:].lstrip(), days, relative, count)
 	elif lower(text).startswith('shares'):
-		response = topbook.lookup('shares', text[6:].lstrip(), days, relative)
+		response = topbook.lookup('shares', text[6:].lstrip(), days, relative, count)
 	else:
 		response['text'] = "Ack! I don't know how to answer that. Try `%s help`?" % trigger_word
 

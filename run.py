@@ -21,7 +21,19 @@ class TopBook(object):
 		self.graph = facebook.GraphAPI(self.token)
 
 	def page_list(self):
-		return "Configured pages are: " + ", ".join(self.pages.keys())
+		pages = []
+		page_groups = []
+		text = []
+		for page in self.pages.keys():
+			if isinstance(self.pages[page], basestring):
+				pages.append(page)
+			else:
+				page_groups.append(page + " (" + ", ".join(self.pages[page]) + ")" )
+		if len(pages) > 0:
+			text.append("Configured pages: " + ", ".join(pages))
+		if len(page_groups) > 0:
+			text.append("Configured page groups: " + ", ".join(page_groups))
+		return {"text": "\n".join(text)}
 
 	def lookup(self, metric, query, days, relative, count):
 		attachments = []
@@ -181,8 +193,8 @@ def hello():
 def slack_parse():
 	help = """
 pages - Get a list of pages
-(top X) likes/comments/shares <account> (last X days) - Find the highest performing post in a page or page group
-(top X) relative likes/comments/shares <account> (last X days) - Find the highest performing post in a page group, relative to the page's average
+(top X) likes/comments/shares page/page1,page2,.../page_group (last X days) - Find the highest performing post in a page or page group
+(top X) relative likes/comments/shares page1,page2,.../page_group (last X days) - Find the highest performing post in a page group, relative to the page's average
 	"""
 
 	response = {}
@@ -193,8 +205,6 @@ pages - Get a list of pages
 		topbook = accounts[token]
 	else:
 		return (json.dumps({"text":"Slack token not found in config."}))
-
-	days = 1
 
 	user_name = request.forms.get('user_name')
 	trigger_word = request.forms.get('trigger_word')
@@ -212,6 +222,7 @@ pages - Get a list of pages
 		count = int(m2.group(1))
 		text = m2.group(2)
 
+	days = 1
 	m = re.search('^(.*) in last (\d+) days?', text)
 	m2 = re.search('^(.*) last (\d+) days?', text)
 	if m and m.group(2):
@@ -220,6 +231,7 @@ pages - Get a list of pages
 	elif m2 and m2.group(2):
 		text = m2.group(1)
 		days = int(m2.group(2))
+
 	relative = False
 	if lower(text).startswith('relative'):
 		text = text[len("relative"):].lstrip()
@@ -228,7 +240,7 @@ pages - Get a list of pages
 	if lower(text).startswith('help'):
 		response['text'] = help
 	elif lower(text).startswith('pages'):
-		response['text'] = topbook.page_list()
+		response = topbook.page_list()
 	elif lower(text).startswith('likes'):
 		response = topbook.lookup('likes', text[5:].lstrip(), days, relative, count)
 	elif lower(text).startswith('comments'):

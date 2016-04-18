@@ -52,7 +52,7 @@ class TopBook(object):
 				except:
 					return "Error requesting post list for %s." % subpage
 				if metric not in top or top[metric] < post[metric]:
-					top['page'] = "[%s] " % subpage
+					top['page'] = "%s" % subpage
 					top['id'] = post['id']
 					top['comments'] = post['comments']
 					top['likes'] = post['likes']
@@ -63,7 +63,7 @@ class TopBook(object):
 
 		message = {
 			"fallback": "Fallback",
-			"text": "%s%s http://www.facebook.com/%s" % (top['page'], top['message'], top['id']),
+			"text": "%s http://www.facebook.com/%s" % (top['message'], top['id']),
 			"fields": [
                 {
                     "title": "Likes",
@@ -79,6 +79,8 @@ class TopBook(object):
             ],
 			"thumb_url": "%s" % top['picture']
 		}
+		if top['page']:
+			message["fields"].append({"title":"Page","value":top['page'], "short": True})
 		attachments.append(message)
 		return {"attachments":attachments}
 		# return "%s%s with %s likes and %s comments (http://www.facebook.com/%s) (%s)" % (top['page'], top['message'], top['likes'], top['comments'], top['id'], top['picture'])
@@ -138,8 +140,8 @@ def hello():
 def slack_parse():
 	help = """
 pages - Get a list of pages
-likes <account> - Show the most liked article for an account
-comments <account> - Show the most commented article for an account
+likes <account> (last X days) - Show the most liked article for an account
+comments <account> (last X days) - Show the most commented article for an account
 	"""
 
 	response = {}

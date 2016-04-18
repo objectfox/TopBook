@@ -198,16 +198,20 @@ def hello():
 
 @route("/slack", method='POST')
 def slack_parse():
-	help = """
-pages - list of configured page options
-*top X likes/comments/shares page/page1,page2,.../page_group in last X days*
- *(top) X* - return the top X results (default: 1)
- *relative* - rank results as percentage compared to page average (optional)
- *likes/comments/shares* - what metric the results are sorted on
- *(for) page/pages1,page2,.../page_group* - specific FB page, manual list of FB pages, or a page group from the config
- *(in the last) X days* - return results from the last X days (default: 1)
-Example: _top 3 relative likes for vox in the last 2 days_
+	help = [
+{"title":"pages","text": "list of configured page options"},
+{"title":"likes/comments/shares page/page1, page2, .../page_group",
+"text": """
+Example: top 3 relative likes for vox, sbnation in the last 2 days
+Options:
+ (top) X - number of results (default: 1)
+ relative - sort results compared to page average (optional)
+ likes/comments/shares - metric to sort on
+ (for) page/pages1,page2,.../page_group - FB page, list of FB pages, or a config page group
+ (in the last) X days - day age range (default: 1)
 """
+}
+]
 
 	response = {}
 	locale.setlocale(locale.LC_ALL, 'en_US')
@@ -258,7 +262,7 @@ Example: _top 3 relative likes for vox in the last 2 days_
 		relative = True
 
 	if lower(text).startswith('help'):
-		response['text'] = help
+		response["attachments"] = help
 	elif lower(text).startswith('pages'):
 		response = topbook.page_list()
 	elif lower(text).startswith('likes'):

@@ -70,7 +70,7 @@ class TopBook(object):
 					pass
 				except Exception, e:
 					return {"text": "Error requesting post list for %s: %s" % (subpage, e)}
-			all_posts.sort(key=lambda x: x.get("perfper"), reverse=True)
+			all_posts.sort(key=lambda x: x.get(metric), reverse=True)
 		else:
 			return {"text": "Page not found. Try the pages command for a list."}
 
@@ -170,7 +170,7 @@ class TopBook(object):
 				post["perfper"] = 100.0
 			postlist.append(post)
 
-		return sorted(postlist, key=lambda x: x.get("perfper"), reverse=True)
+		return sorted(postlist, key=lambda x: x.get(metric), reverse=True)
 
 # --- Move all this junk to topbook.py when done ---
 

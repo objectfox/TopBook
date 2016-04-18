@@ -2,7 +2,7 @@
 
 #from topbook import TopBook
 import facebook
-from string import lower
+from string import lower, replace
 from datetime import datetime
 import urllib2
 import locale
@@ -37,11 +37,18 @@ class TopBook(object):
 
 	def lookup(self, metric, query, days, relative, count):
 		attachments = []
+		if query.startswith("for"):
+			query = query[len("for"):].lstrip()
+		if query.startswith("from"):
+			query = query[len("from"):].lstrip()
+		if query.startswith("on"):
+			query = query[len("on"):].lstrip()
 		page = query
 		sortmetric = metric
 		all_posts = []
 		if relative:
 			sortmetric = "perfper"
+		page = replace(page, ", ",",")
 		if "," in page:
 			page = page.split(",")
 		elif lower(query) in self.lower_pages:
@@ -90,8 +97,8 @@ class TopBook(object):
 	                    "short": True
 	                },
 	                {
-	                    "title": "Performance",
-	                    "value": "%%%s of average (%s)" % (
+	                    "title": "Perf",
+	                    "value": "%%%s of avg (%s)" % (
 	                    		locale.format("%d", top['perfper'], grouping=True),
 	                    		locale.format("%d", top['average'], grouping=True)),
 	                    "short": True
@@ -192,10 +199,15 @@ def hello():
 @route("/slack", method='POST')
 def slack_parse():
 	help = """
-pages - Get a list of pages
-(top X) likes/comments/shares page/page1,page2,.../page_group (last X days) - Find the highest performing post in a page or page group
-(top X) relative likes/comments/shares page1,page2,.../page_group (last X days) - Find the highest performing post in a page group, relative to the page's average
-	"""
+pages - list of configured page options
+*top X likes/comments/shares page/page1,page2,.../page_group in last X days*
+ *(top) X* - return the top X results (default: 1)
+ *relative* - rank results as percentage compared to page average (optional)
+ *likes/comments/shares* - how the results are sorted
+ *(for) page/pages1,page2,.../page_group* - specific fb page, manual list of FB pages, or a page group from the config
+ *(in the last) X days* - return results from the last X days (default: 1)
+Example: _top 3 relative likes for vox in the last 2 days_
+"""
 
 	response = {}
 	locale.setlocale(locale.LC_ALL, 'en_US')
@@ -223,18 +235,22 @@ pages - Get a list of pages
 		text = m2.group(2)
 
 	days = 1
-	m = re.search('^(.*) in last (\d+) days?', text)
-	m2 = re.search('^(.*) last (\d+) days?', text)
-	m3 = re.search('^(.*) (\d+) days?', text)
+	m = re.search('^(.*) (in|for) the last (\d+) days?', text)
+	m2 = re.search('^(.*) (in|for) last (\d+) days?', text)
+	m3 = re.search('^(.*) last (\d+) days?', text)
+	m4 = re.search('^(.*) (\d+) days?', text)
 	if m and m.group(2):
 		text = m.group(1)
-		days = int(m.group(2))
+		days = int(m.group(3))
 	elif m2 and m2.group(2):
 		text = m2.group(1)
-		days = int(m2.group(2))
+		days = int(m2.group(3))
 	elif m3 and m3.group(2):
 		text = m3.group(1)
 		days = int(m3.group(2))
+	elif m4 and m4.group(2):
+		text = m4.group(1)
+		days = int(m4.group(2))
 
 	relative = False
 	if lower(text).startswith('relative'):

@@ -49,3 +49,19 @@ Install the dependencies listed in the requirements.txt file, possibly in a [pyt
 
 Start the bottle server with `./run.py`. This will by default create a server on port 8000 on your machine. Then you need to figure out a way to get requests from Slack to that port, or just use the included `slack-test.py` client to post requests to bottle and verify the output.
 
+# Heroku Deployment
+
+The app is ready for Heroku deployment. To deploy successfully into Heroku you need to set SLACK_TOKEN and FB_TOKEN in your Heroku config, like so:
+
+```
+heroku config:set FB_TOKEN=abcdefghijklmnopqrstuvwxyz
+heroku config:set SLACK_TOKEN=1234567890
+```
+
+You can test your Heroku installation with the slack-test.py script like so:
+
+```
+export BOT_HOST=https://myherokuapp.heroku.com/slack
+export SLACK_TOKEN=1234567890
+./slack-test.py "help"
+```

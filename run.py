@@ -187,6 +187,14 @@ from bottle import route, run, request
 import json, os, re, sys
 from string import lower
 
+# Use gevent if we have it for multiple requests
+gevent = False
+try:
+	from gevent import monkey; monkey.patch_all()
+	gevent = True
+except:
+	pass
+
 accounts = {}
 
 # If our environment variables are set, just use those without a config.
@@ -296,6 +304,8 @@ Options:
 
 	return response
 
-
-run(host='0.0.0.0', port=port, debug=True, reloader=True)
+if gevent:
+	run(host='0.0.0.0', port=port, debug=True, reloader=True, server='gevent')
+else:
+	run(host='0.0.0.0', port=port, debug=True, reloader=True)
 

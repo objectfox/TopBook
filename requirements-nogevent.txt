@@ -1,4 +1,3 @@
 bottle
 facebook-sdk
 wsgiref
-gevent

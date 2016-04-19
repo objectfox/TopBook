@@ -43,7 +43,7 @@ Example complex query: _top 3 relative likes for vox, sbnation, eater in the las
 
 # Configuration & Installation
 
-TopBook requires two configuration tokens and a list of pages to monitor. First, you need a Slack Token from your team's Slack Integrations page. Second, you need a Facebook API Token, which you get by creating a new Facebook App and then requesting it in the [Graph API Explorer](https://developers.facebook.com/tools/explorer/). Then, optionally, add some pages and page collections to your file. The syntax is `"nickname": "facebook_page_name"`, or `"nickname": ["List","of","Facebook","page","names"]`. Name this file config.json, and drop it in the same directory as run.py.
+TopBook requires two configuration tokens and a list of pages to monitor. First, you need a Slack Token from your team's Slack Integrations page. Second, you need a Facebook API Token, which you get by creating a new Facebook App and then requesting it in the [Graph API Explorer](https://developers.facebook.com/tools/explorer/). Then, optionally, add some pages and page collections to your file. The syntax is `"nickname": "facebook_page_name"`, or `"nickname": ["List","of","Facebook","page","names"]`. Name this file config.json, and drop it in the same directory as run.py. If you're deploying to Heroku and don't want to upload a config, you can skip this step, you just won't have any page groups setup.
 
 Install the dependencies listed in the requirements.txt file, possibly in a [python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
 
@@ -51,14 +51,14 @@ Start the bottle server with `./run.py`. This will by default create a server on
 
 # Heroku Deployment
 
-The app is ready for Heroku deployment. To deploy successfully into Heroku you need to set SLACK_TOKEN and FB_TOKEN in your Heroku config, like so:
+The app is ready for easy Heroku deployment, and uses gevent to serve multiple requests at once. To deploy into Heroku you need to set SLACK_TOKEN and FB_TOKEN in your Heroku config. You can also commit a config.json file with page groups setup, but *don't commit tokens*.
 
 ```
 heroku config:set FB_TOKEN=abcdefghijklmnopqrstuvwxyz
 heroku config:set SLACK_TOKEN=1234567890
 ```
 
-You can test your Heroku installation with the slack-test.py script like so:
+You can test your Heroku installation with the slack-test.py script.
 
 ```
 export BOT_HOST=https://myherokuapp.heroku.com/slack

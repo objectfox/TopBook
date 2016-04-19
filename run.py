@@ -206,10 +206,19 @@ else:
 	port = 8000
 
 if os.environ.get('SLACK_TOKEN') and os.environ.get('FB_TOKEN'):
+	options = {}
+	try:
+		with open("config.json", 'r') as jsonfile:
+		    cfg = json.loads(jsonfile.read())
+		for app in cfg.keys():
+			options.update(cfg[app]['pages'])
+	except:
+		pass
+
 	app = {
 		"slacktoken": os.environ['SLACK_TOKEN'],
 		"fbtoken": os.environ['FB_TOKEN'],
-		"pages": {}
+		"pages": options
 	}
 	accounts[os.environ['SLACK_TOKEN']] = TopBook(app)
 else:
@@ -241,7 +250,10 @@ Options:
 ]
 
 	response = {}
-	locale.setlocale(locale.LC_ALL, 'es_US.utf8')
+	try:
+		locale.setlocale(locale.LC_ALL, 'en_US.utf8')
+	except:
+		locale.setlocale(locale.LC_ALL, 'en_US')
 
 	token = request.forms.get('token')
 	if accounts[token]:

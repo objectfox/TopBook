@@ -1,0 +1,10 @@
+{
+    "default": {
+        "slacktoken": "1234567890",
+        "fbtoken": "abcdefghijklmnopqrstuvwxyz",
+        "pages": {
+            "NYT": "nytimes",
+            "VoxMedia": ["vox","polygon","eater","verge","rackednational","sbnation","CurbedNational","recodedotnet"]
+        }
+    }
+}

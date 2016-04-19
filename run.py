@@ -233,7 +233,7 @@ Options:
 ]
 
 	response = {}
-	locale.setlocale(locale.LC_ALL, 'en_US')
+	locale.setlocale(locale.LC_ALL, 'es_US.utf8')
 
 	token = request.forms.get('token')
 	if accounts[token]:

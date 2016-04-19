@@ -19,4 +19,4 @@ args = {
     'access_token': newtoken
 	}
 
-print fb.request(page_id, args=args)
+print fb.request(page_id, args=args).get('access_token')

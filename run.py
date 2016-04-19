@@ -21,6 +21,8 @@ class TopBook(object):
 		self.graph = facebook.GraphAPI(self.token)
 
 	def page_list(self):
+		if not self.pages:
+			return {"text": "There aren't any pages configured."}
 		pages = []
 		page_groups = []
 		text = []
@@ -182,15 +184,32 @@ class TopBook(object):
 # --- Move all this junk to topbook.py when done ---
 
 from bottle import route, run, request
-import json
+import json, os, re, sys
 from string import lower
-import re
 
 accounts = {}
-with open("config.json", 'r') as jsonfile:
-    cfg = json.loads(jsonfile.read())
-for app in cfg.keys():
-	accounts[cfg[app]['slacktoken']] = TopBook(cfg[app])
+
+# If our environment variables are set, just use those without a config.
+# This is the heroku-style use case.
+
+if len(sys.argv) > 1:
+	port = sys.argv[1]
+else:
+	port = 8000
+
+if os.environ.get('SLACK_TOKEN') and os.environ.get('FB_TOKEN'):
+	app = {
+		"slacktoken": os.environ['SLACK_TOKEN'],
+		"fbtoken": os.environ['FB_TOKEN'],
+		"pages": {}
+	}
+	accounts[os.environ['SLACK_TOKEN']] = TopBook(app)
+else:
+	with open("config.json", 'r') as jsonfile:
+	    cfg = json.loads(jsonfile.read())
+	for app in cfg.keys():
+		accounts[cfg[app]['slacktoken']] = TopBook(cfg[app])
+
 
 @route("/")
 def hello():
@@ -278,5 +297,5 @@ Options:
 	return response
 
 
-run(host='127.0.0.1', port=8000, debug=True, reloader=True)
+run(host='0.0.0.0', port=port, debug=True, reloader=True)
 

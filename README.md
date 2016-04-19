@@ -23,11 +23,13 @@ You can for page metrics with like, which returns the most liked article on the 
 topbook likes vox
 ```
 
-You can also create collections, say for all the local news sites in your area, or the sites that follow a specific niche, and ask all of them in one go.
+You can also create collections, say for all the local news sites in your area, pages for a specific company, or the sites that follow a specific niche, and ask all of them in one go.
 
 ```
-topbook comments austinnews
+topbook comments VoxMedia
 ```
+
+The main query has a whole set of options.
 
 ```
 top X likes/comments/shares page/page1, page2, .../page_group in last X days

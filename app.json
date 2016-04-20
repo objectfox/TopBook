@@ -1,0 +1,26 @@
+{
+  "name": "TopBook",
+  "description": "A Slack Bot to easily query the Facebook API for popular posts.",
+  "keywords": [
+    "facebook",
+    "slack",
+    "bot"
+  ],
+  "repository": "https://github.com/jeffk/TopBook",
+  "env": {
+    "FB_TOKEN": {
+      "description": "A Facebook Graph API access token.",
+      "required": true
+    },
+    "SLACK_TOKEN": {
+      "description": "The unique Slack Token your Outbound Webhook sends.",
+      "required": true
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  }
+}

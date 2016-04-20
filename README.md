@@ -3,6 +3,8 @@ A Slack integrated Python app to analyze Facebook pages
 
 TopBook is a simple Python Bottle application which can be called from an [Outgoing Slack Webhook](https://api.slack.com/outgoing-webhooks). It allows you to ask for the most liked or commented posts for a Facebook page or collection of Facebook pages.
 
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
 # Features
 
 TopBook lets you quickly determine what the most popular content is on a Facebook page or group of Facebook pages. You can get a list of things it knows how to do with:
